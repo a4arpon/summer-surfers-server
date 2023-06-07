@@ -25,7 +25,7 @@ const verifyJWT = (req, res, next) => {
   }
 }
 // Mongodb With Server
-const { MongoClient, ServerApiVersion } = require('mongodb')
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb')
 // const uri = `mongodb+srv://${process.env.mongo_user}:${process.env.mongo_password}@clustertest.wemsww6.mongodb.net/?retryWrites=true&w=majority`
 const uri = 'mongodb://127.0.0.1:27017/'
 const client = new MongoClient(uri, {
@@ -38,19 +38,52 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    await client.connect()
     // Send a ping to confirm a successful connection
     await client.db('admin').command({ ping: 1 })
     console.log('Pinged your deployment.')
     const database = client.db('summerSurfers')
     const coursesCollection = database.collection('courseColl')
     const usersCollection = database.collection('usersColl')
-    const paymentsCollection = database.collection('paymentColl')
+    const paymentsCollection = database.collection('paymentsColl')
+    const myCourseCollection = database.collection('myCourseColl')
     const reviewsCollection = database.collection('reviewsColl')
     // courses operation
     app.get('/courses', async (req, res) => {
       const result = await coursesCollection.find().toArray()
       res.send(result)
+    })
+    // cart operation
+    app.post('/carts', verifyJWT, async (req, res) => {
+      const data = req.body
+      const query = { course: data?.course, email: data?.email }
+      const checkSelected = await myCourseCollection.findOne(query)
+      if (!checkSelected) {
+        const result = await myCourseCollection.insertOne(data)
+        if (result?.insertedId) {
+          const course = { _id: new ObjectId(data?.course) }
+          console.log(course)
+          const enrolledCourse = await coursesCollection.findOne(course)
+          const upgradeDoc = {
+            $set: {
+              enrolled: enrolledCourse?.enrolled + 1,
+            },
+          }
+          const upgradeResult = await coursesCollection.updateOne(
+            course,
+            upgradeDoc
+          )
+          if (upgradeResult?.modifiedCount > 0) {
+            res.send({
+              error: false,
+              message: 'Course added to cart. Pay to enroll now.',
+              result,
+              upgradeResult,
+            })
+          }
+        }
+      } else {
+        res.send({ error: true, message: 'Course already added.' })
+      }
     })
     // users operation
     app.post('/users', async (req, res) => {
