@@ -52,6 +52,20 @@ async function run() {
       const result = await coursesCollection.find().toArray()
       res.send(result)
     })
+    // users operation
+    app.post('/users', async (req, res) => {
+      const user = req.body
+      const query = { email: user.email }
+      const existUser = await usersCollection.findOne(query)
+      if (!existUser) {
+        const result = await usersCollection.insertOne(user)
+        res.send(result)
+      } else {
+        res.send({ message: 'Users Exist Already' })
+      }
+    })
+    // Payment operations
+    app.post('payment', async (req, res) => {})
     // cart operation
     app.post('/carts', verifyJWT, async (req, res) => {
       const data = req.body
@@ -61,7 +75,6 @@ async function run() {
         const result = await myCourseCollection.insertOne(data)
         if (result?.insertedId) {
           const course = { _id: new ObjectId(data?.course) }
-          console.log(course)
           const enrolledCourse = await coursesCollection.findOne(course)
           const upgradeDoc = {
             $set: {
@@ -85,17 +98,47 @@ async function run() {
         res.send({ error: true, message: 'Course already added.' })
       }
     })
-    // users operation
-    app.post('/users', async (req, res) => {
-      const user = req.body
-      const query = { email: user.email }
-      const existUser = await usersCollection.findOne(query)
-      if (!existUser) {
-        const result = await usersCollection.insertOne(user)
-        res.send(result)
-      } else {
-        res.send({ message: 'Users Exist Already' })
-      }
+    // instructor operations
+    app.get('/instructors/popular', async (req, res) => {
+      const instructors = await usersCollection
+        .find({ role: 'instructor' })
+        .toArray()
+      const courses = await coursesCollection.find().toArray()
+
+      const instructorsWithPopularity = instructors.map((instructor) => {
+        const instructorCourses = courses.filter(
+          (course) => course.instructor.id === instructor._id.toString()
+        )
+
+        const totalCourses = instructorCourses.length
+        let popularCourses = 0
+        let totalStudents = 0
+        let totalSeats = 0
+        instructorCourses.forEach((course) => {
+          const enrollmentPercentage =
+            (course.enrolled / course.totalSeats) * 100
+          if (enrollmentPercentage > 70) {
+            popularCourses++
+          }
+          totalStudents += course.enrolled
+          totalSeats += course.totalSeats
+        })
+        const popularityPercentage = (popularCourses / totalCourses) * 100 || 0
+        return {
+          ...instructor,
+          popularityPercentage,
+          totalStudents,
+          totalSeats,
+        }
+      })
+      const popularInstructors = instructorsWithPopularity.filter(
+        (instructor) => instructor.popularityPercentage > 0
+      )
+      popularInstructors.sort(
+        (a, b) => b.popularityPercentage - a.popularityPercentage
+      )
+      const topPopularInstructors = popularInstructors.slice(0, 6)
+      res.send(topPopularInstructors)
     })
     // jwt token generation
     app.post('/jwt', async (req, res) => {
