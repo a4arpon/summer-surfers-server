@@ -52,6 +52,13 @@ async function run() {
       const result = await coursesCollection.find().toArray()
       res.send(result)
     })
+    // courses operation
+    app.get('/courses/instructor/:id', async (req, res) => {
+      const instructorID = req.params.id
+      const query = { 'instructor.id': instructorID }
+      const result = await coursesCollection.find(query).toArray()
+      res.send(result)
+    })
     app.get('/courses/popular', async (req, res) => {
       const courses = await coursesCollection.find().toArray()
       const tempCourse = courses.filter(
