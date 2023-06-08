@@ -52,6 +52,24 @@ async function run() {
       const result = await coursesCollection.find().toArray()
       res.send(result)
     })
+    app.get('/courses/popular', async (req, res) => {
+      const courses = await coursesCollection.find().toArray()
+      const tempCourse = courses.filter(
+        (course) => course.totalSeats > course.enrolled
+      )
+      const popularCourses = tempCourse.filter((course) => {
+        const enrollmentPercentage = (course.enrolled / course.totalSeats) * 100
+        return enrollmentPercentage > 70
+      })
+      popularCourses.sort((a, b) => {
+        const aEnrollmentPercentage = (a.enrolled / a.totalSeats) * 100
+        const bEnrollmentPercentage = (b.enrolled / b.totalSeats) * 100
+        return bEnrollmentPercentage - aEnrollmentPercentage
+      })
+      const topPopularCourses = popularCourses.slice(0, 6)
+      res.send(topPopularCourses)
+    })
+
     // users operation
     app.post('/users', async (req, res) => {
       const user = req.body
@@ -99,6 +117,12 @@ async function run() {
       }
     })
     // instructor operations
+    app.get('/instructors', async (req, res) => {
+      const result = await usersCollection
+        .find({ role: 'instructor' })
+        .toArray()
+      res.send(result)
+    })
     app.get('/instructors/popular', async (req, res) => {
       const instructors = await usersCollection
         .find({ role: 'instructor' })
