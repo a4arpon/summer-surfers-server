@@ -119,18 +119,37 @@ async function run() {
       if (paymentData.status === 'paid') {
         const addPaymentData = await paymentsCollection.insertOne(paymentData)
         if (addPaymentData) {
-          const deleteFromCarts = await Promise.all(
+          const updateMyCourses = await Promise.all(
             paymentData?.items?.map(async (item) => {
-              const query = { email: paymentData.email }
-              const deleteFromCart = await myCourseCollection.findOneAndDelete(
-                query
+              const query = { email: paymentData.email, course: item }
+              const updatedDoc = {
+                $set: {
+                  status: 'paid',
+                },
+              }
+              const upgradeMyCourse = await myCourseCollection.findOneAndUpdate(
+                query,
+                updatedDoc
               )
-              return deleteFromCart
+              const course = { _id: new ObjectId(item) }
+              const enrolledCourse = await coursesCollection.findOne(course)
+              const upgradeDoc = {
+                $set: {
+                  enrolled: enrolledCourse?.enrolled + 1,
+                },
+              }
+              const upgradeStudentNum = await coursesCollection.updateOne(
+                course,
+                upgradeDoc
+              )
+              return { upgradeMyCourse, upgradeStudentNum }
             })
           )
-          console.log(deleteFromCarts)
-          if (deleteFromCarts) {
-            res.send({ message: 'Payment successful.' })
+          if (updateMyCourses) {
+            res.send({
+              message: 'Payment successful.',
+              response: updateMyCourses,
+            })
           }
         }
       }
@@ -157,25 +176,11 @@ async function run() {
       if (!checkSelected) {
         const result = await myCourseCollection.insertOne(data)
         if (result?.insertedId) {
-          const course = { _id: new ObjectId(data?.course) }
-          const enrolledCourse = await coursesCollection.findOne(course)
-          const upgradeDoc = {
-            $set: {
-              enrolled: enrolledCourse?.enrolled + 1,
-            },
-          }
-          const upgradeResult = await coursesCollection.updateOne(
-            course,
-            upgradeDoc
-          )
-          if (upgradeResult?.modifiedCount > 0) {
-            res.send({
-              error: false,
-              message: 'Course added to cart. Pay to enroll now.',
-              result,
-              upgradeResult,
-            })
-          }
+          res.send({
+            error: false,
+            message: 'Course added to cart. Pay to enroll now.',
+            result,
+          })
         }
       } else {
         res.send({ error: true, message: 'Course already added.' })
