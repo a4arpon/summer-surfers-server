@@ -114,9 +114,19 @@ async function run() {
       }
     })
     // Payment operations
+    app.get('/payments/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email
+      const result = await paymentsCollection
+        .find({ email })
+        .sort({ billingTime: -1 })
+        .toArray()
+      res.send(result)
+    })
     app.post('/payment', verifyJWT, async (req, res) => {
       const paymentData = req.body
       if (paymentData.status === 'paid') {
+        const date = new Date()
+        paymentData.billingTime = date
         const addPaymentData = await paymentsCollection.insertOne(paymentData)
         if (addPaymentData) {
           const updateMyCourses = await Promise.all(
@@ -157,9 +167,9 @@ async function run() {
     app.post('/create-payment-intent', verifyJWT, async (req, res) => {
       const price = req.body.price
       const amount = parseFloat(price) * 100
-      if (amount > 0) {
+      if (amount > 0 && !isNaN(amount)) {
         const paymentIntent = await stripe.paymentIntents.create({
-          amount: amount,
+          amount: amount.toFixed(0),
           currency: 'usd',
           payment_method_types: ['card'],
         })
