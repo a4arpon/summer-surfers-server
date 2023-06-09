@@ -48,20 +48,49 @@ async function run() {
     const paymentsCollection = database.collection('paymentsColl')
     const myCourseCollection = database.collection('myCourseColl')
     const reviewsCollection = database.collection('reviewsColl')
+    // Middleware
+    const verifyInstructor = async (req, res, next) => {
+      const email = req.decoded.email
+      const query = { email: email }
+      const user = await usersCollection.findOne(query)
+      if (user?.role === 'instructor') {
+        next()
+      } else {
+        return res
+          .status(403)
+          .send({ error: true, message: 'Forbidden access' })
+      }
+    }
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email
+      const query = { email: email }
+      const user = await usersCollection.findOne(query)
+      if (user?.role === 'admin') {
+        next()
+      } else {
+        return res
+          .status(403)
+          .send({ error: true, message: 'Forbidden access' })
+      }
+    }
+
     // courses operation
     app.get('/courses', async (req, res) => {
-      const result = await coursesCollection.find().toArray()
+      const result = await coursesCollection
+        .find({ status: 'approved' })
+        .toArray()
       res.send(result)
     })
-    // courses operation
     app.get('/courses/instructor/:id', async (req, res) => {
       const instructorID = req.params.id
-      const query = { 'instructor.id': instructorID }
+      const query = { 'instructor.id': instructorID, status: 'approved' }
       const result = await coursesCollection.find(query).toArray()
       res.send(result)
     })
     app.get('/courses/popular', async (req, res) => {
-      const courses = await coursesCollection.find().toArray()
+      const courses = await coursesCollection
+        .find({ status: 'approved' })
+        .toArray()
       const tempCourse = courses.filter(
         (course) => course.totalSeats > course.enrolled
       )
@@ -83,7 +112,10 @@ async function run() {
       const courseIDs = await myCourseCollection.find(query).toArray()
       const promises = courseIDs.map(async (item) => {
         const courseId = new ObjectId(item.course)
-        const course = await coursesCollection.findOne({ _id: courseId })
+        const course = await coursesCollection.findOne({
+          _id: courseId,
+          status: 'approved',
+        })
         return course
       })
       const courses = await Promise.all(promises)
@@ -95,7 +127,10 @@ async function run() {
       const courseIDs = await myCourseCollection.find(query).toArray()
       const promises = courseIDs.map(async (item) => {
         const courseId = new ObjectId(item.course)
-        const course = await coursesCollection.findOne({ _id: courseId })
+        const course = await coursesCollection.findOne({
+          _id: courseId,
+          status: 'approved',
+        })
         return course
       })
       const courses = await Promise.all(promises)
@@ -110,7 +145,7 @@ async function run() {
         const result = await usersCollection.insertOne(user)
         res.send(result)
       } else {
-        res.send({ message: 'Users Exist Already' })
+        res.send({ message: 'Users exist already' })
       }
     })
     // Payment operations
@@ -141,7 +176,7 @@ async function run() {
                 query,
                 updatedDoc
               )
-              const course = { _id: new ObjectId(item) }
+              const course = { _id: new ObjectId(item), status: 'approved' }
               const enrolledCourse = await coursesCollection.findOne(course)
               const upgradeDoc = {
                 $set: {
@@ -208,17 +243,63 @@ async function run() {
       }
     })
     // instructor operations
+    app.get('/instructor/verify/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email
+      if (req.decoded.email === email) {
+        const query = { email: email }
+        const user = await usersCollection.findOne(query)
+        const result = { instructor: user?.role === 'instructor' }
+        res.send(result)
+      } else {
+        res.send({ instructor: false })
+      }
+    })
     app.get('/instructors', async (req, res) => {
       const result = await usersCollection
         .find({ role: 'instructor' })
         .toArray()
       res.send(result)
     })
+    app.get(
+      '/courses/instructor/:email',
+      verifyJWT,
+      verifyInstructor,
+      async (req, res) => {
+        const email = req.params.email
+        const query = { 'instructor.email': email, status: 'approved' }
+        const result = await coursesCollection.find(query).toArray()
+        res.send(result)
+      }
+    )
+    app.get(
+      '/courses/instructor/declined/:email',
+      verifyJWT,
+      verifyInstructor,
+      async (req, res) => {
+        const email = req.params.email
+        const query = { 'instructor.email': email, status: 'declined' }
+        const result = await coursesCollection.find(query).toArray()
+        res.send(result)
+      }
+    )
+    app.get(
+      '/courses/instructor/pending/:email',
+      verifyJWT,
+      verifyInstructor,
+      async (req, res) => {
+        const email = req.params.email
+        const query = { 'instructor.email': email }
+        const result = await coursesCollection.find(query).toArray()
+        res.send(result)
+      }
+    )
     app.get('/instructors/popular', async (req, res) => {
       const instructors = await usersCollection
         .find({ role: 'instructor' })
         .toArray()
-      const courses = await coursesCollection.find().toArray()
+      const courses = await coursesCollection
+        .find({ status: 'approved' })
+        .toArray()
       const instructorsWithPopularity = instructors.map((instructor) => {
         const instructorCourses = courses.filter(
           (course) => course.instructor.id === instructor._id.toString()
