@@ -76,7 +76,30 @@ async function run() {
       const topPopularCourses = popularCourses.slice(0, 6)
       res.send(topPopularCourses)
     })
-
+    app.get('/courses/my-courses/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email
+      const query = { email: email, status: 'paid' }
+      const courseIDs = await myCourseCollection.find(query).toArray()
+      const promises = courseIDs.map(async (item) => {
+        const courseId = new ObjectId(item.course)
+        const course = await coursesCollection.findOne({ _id: courseId })
+        return course
+      })
+      const courses = await Promise.all(promises)
+      res.send(courses)
+    })
+    app.get('/courses/my-lists/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email
+      const query = { email: email, status: 'unpaid' }
+      const courseIDs = await myCourseCollection.find(query).toArray()
+      const promises = courseIDs.map(async (item) => {
+        const courseId = new ObjectId(item.course)
+        const course = await coursesCollection.findOne({ _id: courseId })
+        return course
+      })
+      const courses = await Promise.all(promises)
+      res.send(courses)
+    })
     // users operation
     app.post('/users', async (req, res) => {
       const user = req.body
@@ -123,6 +146,17 @@ async function run() {
         res.send({ error: true, message: 'Course already added.' })
       }
     })
+    app.delete('/carts/:id', verifyJWT, async (req, res) => {
+      const courseID = req.params.id
+      const query = { course: courseID }
+      const checkSelected = await myCourseCollection.findOne(query)
+      if (checkSelected) {
+        const result = await myCourseCollection.deleteOne(checkSelected)
+        res.send({ error: false, message: 'Course deleted', response: result })
+      } else {
+        res.send({ error: true, message: 'Course not found' })
+      }
+    })
     // instructor operations
     app.get('/instructors', async (req, res) => {
       const result = await usersCollection
@@ -135,12 +169,10 @@ async function run() {
         .find({ role: 'instructor' })
         .toArray()
       const courses = await coursesCollection.find().toArray()
-
       const instructorsWithPopularity = instructors.map((instructor) => {
         const instructorCourses = courses.filter(
           (course) => course.instructor.id === instructor._id.toString()
         )
-
         const totalCourses = instructorCourses.length
         let popularCourses = 0
         let totalStudents = 0
