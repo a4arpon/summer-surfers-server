@@ -114,16 +114,40 @@ async function run() {
       }
     })
     // Payment operations
-    app.post('payment', async (req, res) => {})
+    app.post('/payment', verifyJWT, async (req, res) => {
+      const paymentData = req.body
+      if (paymentData.status === 'paid') {
+        const addPaymentData = await paymentsCollection.insertOne(paymentData)
+        if (addPaymentData) {
+          const deleteFromCarts = await Promise.all(
+            paymentData?.items?.map(async (item) => {
+              const query = { email: paymentData.email }
+              const deleteFromCart = await myCourseCollection.findOneAndDelete(
+                query
+              )
+              return deleteFromCart
+            })
+          )
+          console.log(deleteFromCarts)
+          if (deleteFromCarts) {
+            res.send({ message: 'Payment successful.' })
+          }
+        }
+      }
+    })
     app.post('/create-payment-intent', verifyJWT, async (req, res) => {
-      const price = req.body
+      const price = req.body.price
       const amount = parseFloat(price) * 100
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: amount,
-        currency: 'usd',
-        payment_method_types: ['card'],
-      })
-      res.send({ clientSecret: paymentIntent.client_secret })
+      if (amount > 0) {
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amount,
+          currency: 'usd',
+          payment_method_types: ['card'],
+        })
+        res.send({ clientSecret: paymentIntent.client_secret })
+      } else {
+        res.send({ error: true })
+      }
     })
     // cart operation
     app.post('/carts', verifyJWT, async (req, res) => {
