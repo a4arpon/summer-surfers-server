@@ -138,7 +138,11 @@ async function run() {
       const courses = await Promise.all(promises)
       res.send(courses)
     })
-    // users operation
+    /*-------------------------------
+
+     USERS OPERATION
+ 
+     -------------------------------*/
     app.post('/users', async (req, res) => {
       const user = req.body
       const query = { email: user.email }
@@ -150,7 +154,9 @@ async function run() {
         res.send({ message: 'Users exist already' })
       }
     })
-    // Payment operations
+    /*-------------------------------
+    PAYMENT OPERATIONS
+    -------------------------------*/
     app.get('/payments/:email', verifyJWT, async (req, res) => {
       const email = req.params.email
       const result = await paymentsCollection
@@ -215,7 +221,12 @@ async function run() {
         res.send({ error: true })
       }
     })
-    // cart operation
+
+    /*-------------------------------
+    
+    CART OPERATION
+    
+    -------------------------------*/
     app.post('/carts', verifyJWT, async (req, res) => {
       const data = req.body
       const query = { course: data?.course, email: data?.email }
@@ -244,7 +255,11 @@ async function run() {
         res.send({ error: true, message: 'Course not found' })
       }
     })
-    // instructor operations
+    /*-------------------------------
+    
+    INSTRUCTOR OPERATIONS
+    
+    -------------------------------*/
     app.get('/instructor/verify/:email', verifyJWT, async (req, res) => {
       const email = req.params.email
       if (req.decoded.email === email) {
@@ -374,6 +389,89 @@ async function run() {
       const topPopularInstructors = popularInstructors.slice(0, 6)
       res.send(topPopularInstructors)
     })
+    /*-------------------------------
+
+     Admin Related Routes and Operations 
+
+    -------------------------------*/
+    app.get('/admin/verify/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email
+      if (req.decoded.email === email) {
+        const query = { email: email }
+        const user = await usersCollection.findOne(query)
+        const result = { admin: user?.role === 'admin' }
+        res.send(result)
+      } else {
+        res.send({ admin: false })
+      }
+    })
+    app.get('/admin/courses', verifyJWT, verifyAdmin, async (req, res) => {
+      const result = await coursesCollection.find().toArray()
+      res.send(result)
+    })
+    app.post(
+      '/admin/courses/feedback',
+      verifyJWT,
+      verifyAdmin,
+      async (req, res) => {
+        const data = req.body
+        const query = { _id: new ObjectId(data?.id) }
+        const options = { upsert: true }
+        const upgradeDoc = {
+          $set: {
+            feedback: data?.feedback,
+          },
+        }
+        const result = await coursesCollection.updateOne(
+          query,
+          upgradeDoc,
+          options
+        )
+        res.send(result)
+      }
+    )
+    app.patch(
+      '/admin/courses/approve/:id',
+      verifyJWT,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id
+        const filter = { _id: new ObjectId(id) }
+        const option = { upsert: true }
+        const updatedDoc = {
+          $set: {
+            status: 'approved',
+          },
+        }
+        const result = await coursesCollection.updateOne(
+          filter,
+          updatedDoc,
+          option
+        )
+        res.send(result)
+      }
+    )
+    app.patch(
+      '/admin/courses/declined/:id',
+      verifyJWT,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id
+        const filter = { _id: new ObjectId(id) }
+        const option = { upsert: true }
+        const updatedDoc = {
+          $set: {
+            status: 'declined',
+          },
+        }
+        const result = await coursesCollection.updateOne(
+          filter,
+          updatedDoc,
+          option
+        )
+        res.send(result)
+      }
+    )
     // jwt token generation
     app.post('/jwt', async (req, res) => {
       const user = req.body
