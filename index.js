@@ -47,7 +47,6 @@ async function run() {
     const usersCollection = database.collection('usersColl')
     const paymentsCollection = database.collection('paymentsColl')
     const myCourseCollection = database.collection('myCourseColl')
-    const reviewsCollection = database.collection('reviewsColl')
     // Middleware
     const verifyInstructor = async (req, res, next) => {
       const email = req.decoded.email
@@ -469,6 +468,62 @@ async function run() {
           updatedDoc,
           option
         )
+        res.send(result)
+      }
+    )
+    app.get('/admin/users', verifyJWT, verifyAdmin, async (req, res) => {
+      const result = await usersCollection.find().toArray()
+      res.send(result)
+    })
+    app.patch(
+      '/admin/update/instructor/:id',
+      verifyJWT,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id
+        const filter = { _id: new ObjectId(id) }
+        const option = { upsert: true }
+        const updatedDoc = {
+          $set: { role: 'instructor' },
+        }
+        const result = await usersCollection.updateOne(
+          filter,
+          updatedDoc,
+          option
+        )
+        res.send(result)
+      }
+    )
+    app.patch(
+      '/admin/update/admin/:id',
+      verifyJWT,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id
+        const filter = { _id: new ObjectId(id) }
+        const option = { upsert: true }
+        const updatedDoc = {
+          $set: { role: 'admin' },
+        }
+        const result = await usersCollection.updateOne(
+          filter,
+          updatedDoc,
+          option
+        )
+        res.send(result)
+      }
+    )
+    app.patch(
+      '/admin/downgrade/user/:id',
+      verifyJWT,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id
+        const filter = { _id: new ObjectId(id) }
+        const updatedDoc = {
+          $unset: { role: '' },
+        }
+        const result = await usersCollection.updateOne(filter, updatedDoc)
         res.send(result)
       }
     )
