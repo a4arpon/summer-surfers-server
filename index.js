@@ -263,7 +263,7 @@ async function run() {
       res.send(result)
     })
     app.get(
-      '/courses/instructor/:email',
+      '/instructor/courses/:email',
       verifyJWT,
       verifyInstructor,
       async (req, res) => {
@@ -274,7 +274,7 @@ async function run() {
       }
     )
     app.get(
-      '/courses/instructor/declined/:email',
+      '/instructor/courses/declined/:email',
       verifyJWT,
       verifyInstructor,
       async (req, res) => {
@@ -285,7 +285,7 @@ async function run() {
       }
     )
     app.get(
-      '/courses/instructor/pending/:email',
+      '/instructor/courses/pending/:email',
       verifyJWT,
       verifyInstructor,
       async (req, res) => {
@@ -342,7 +342,7 @@ async function run() {
         .toArray()
       const instructorsWithPopularity = instructors.map((instructor) => {
         const instructorCourses = courses.filter(
-          (course) => course.instructor.id === instructor._id.toString()
+          (course) => course.instructor.email === instructor.email
         )
         const totalCourses = instructorCourses.length
         let popularCourses = 0
