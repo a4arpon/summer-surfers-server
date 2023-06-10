@@ -81,12 +81,14 @@ async function run() {
         .toArray()
       res.send(result)
     })
-    app.get('/courses/instructor/:id', async (req, res) => {
-      const instructorID = req.params.id
-      const query = { 'instructor.id': instructorID, status: 'approved' }
+    // Filter courses by instructor category
+    app.get('/courses/instructor/:email', async (req, res) => {
+      const instructorEmail = req.params.email
+      const query = { 'instructor.email': instructorEmail, status: 'approved' }
       const result = await coursesCollection.find(query).toArray()
       res.send(result)
     })
+    // filter courses by popular
     app.get('/courses/popular', async (req, res) => {
       const courses = await coursesCollection
         .find({ status: 'approved' })
@@ -288,8 +290,46 @@ async function run() {
       verifyInstructor,
       async (req, res) => {
         const email = req.params.email
-        const query = { 'instructor.email': email }
+        const query = { 'instructor.email': email, status: 'pending' }
         const result = await coursesCollection.find(query).toArray()
+        res.send(result)
+      }
+    )
+    app.post(
+      '/instructor/courses/add',
+      verifyJWT,
+      verifyInstructor,
+      async (req, res) => {
+        const data = req.body
+        const result = await coursesCollection.insertOne(data)
+        res.send(result)
+      }
+    )
+    app.put(
+      '/instructor/courses/update',
+      verifyJWT,
+      verifyInstructor,
+      async (req, res) => {
+        const data = req.body
+        const query = { _id: new ObjectId(data?.id) }
+        const updatedDoc = {
+          $set: {
+            title: data?.title,
+            price: data?.price,
+            totalSeats: data?.totalSeats,
+          },
+        }
+        const result = await coursesCollection.updateOne(query, updatedDoc)
+        res.send(result)
+      }
+    )
+    app.get(
+      '/instructor/courses/:id',
+      verifyJWT,
+      verifyInstructor,
+      async (req, res) => {
+        const query = { _id: new ObjectId(req.params.id) }
+        const result = await coursesCollection.findOne(query)
         res.send(result)
       }
     )
