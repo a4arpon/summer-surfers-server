@@ -208,7 +208,7 @@ async function run() {
     })
     app.post('/create-payment-intent', verifyJWT, async (req, res) => {
       const price = req.body.price
-      const amount = parseFloat(price) * 100
+      const amount = parseFloat(price?.toFixed(2)) * 100
       if (amount > 0 && !isNaN(amount)) {
         const paymentIntent = await stripe.paymentIntents.create({
           amount: amount.toFixed(0),
