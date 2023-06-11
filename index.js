@@ -40,8 +40,8 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Send a ping to confirm a successful connection
-    await client.db('admin').command({ ping: 1 })
-    console.log('Pinged your deployment.')
+    // await client.db('admin').command({ ping: 1 })
+    // console.log('Pinged your deployment.')
     const database = client.db('summerSurfers')
     const coursesCollection = database.collection('courseColl')
     const usersCollection = database.collection('usersColl')
