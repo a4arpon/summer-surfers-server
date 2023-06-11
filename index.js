@@ -271,10 +271,27 @@ async function run() {
       }
     })
     app.get('/instructors', async (req, res) => {
-      const result = await usersCollection
+      const instructors = await usersCollection
         .find({ role: 'instructor' })
         .toArray()
-      res.send(result)
+      const instructorEmails = instructors.map((instructor) => instructor.email)
+      const instructorCourses = await coursesCollection
+        .find({ 'instructor.email': { $in: instructorEmails } })
+        .toArray()
+      const instructorData = instructors.map((instructor) => {
+        const instructorSpecificCourses = instructorCourses.filter(
+          (course) => course.instructor.email === instructor.email
+        )
+        let totalStudents = 0
+        instructorSpecificCourses.forEach((course) => {
+          totalStudents += course.enrolled
+        })
+        return {
+          ...instructor,
+          totalStudents,
+        }
+      })
+      res.send(instructorData)
     })
     app.get(
       '/instructor/courses/:email',
@@ -338,7 +355,7 @@ async function run() {
       }
     )
     app.get(
-      '/instructor/courses/:id',
+      '/instructor/course/:id',
       verifyJWT,
       verifyInstructor,
       async (req, res) => {
