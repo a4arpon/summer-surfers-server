@@ -27,8 +27,8 @@ const verifyJWT = (req, res, next) => {
 }
 // Mongodb With Server
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb')
-// const uri = `mongodb+srv://${process.env.mongo_user}:${process.env.mongo_password}@clustertest.wemsww6.mongodb.net/?retryWrites=true&w=majority`
-const uri = 'mongodb://127.0.0.1:27017/'
+const uri = `mongodb+srv://${process.env.mongo_user}:${process.env.mongo_password}@clustertest.wemsww6.mongodb.net/?retryWrites=true&w=majority`
+// const uri = 'mongodb://127.0.0.1:27017/'
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
