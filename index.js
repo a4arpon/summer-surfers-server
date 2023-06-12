@@ -60,6 +60,11 @@ async function run() {
           .send({ error: true, message: 'Forbidden access' })
       }
     }
+    /* 
+    
+    This middleware used for verifying admin related tasks. Without admin permission all users and gusts are forbidden to do these
+
+    */
     const verifyAdmin = async (req, res, next) => {
       const email = req.decoded.email
       const query = { email: email }
@@ -107,35 +112,45 @@ async function run() {
       const topPopularCourses = popularCourses.slice(0, 6)
       res.send(topPopularCourses)
     })
+
+    // this function is to get specified users purchased courses
     app.get('/courses/my-courses/:email', verifyJWT, async (req, res) => {
       const email = req.params.email
-      const query = { email: email, status: 'paid' }
-      const courseIDs = await myCourseCollection.find(query).toArray()
-      const promises = courseIDs.map(async (item) => {
-        const courseId = new ObjectId(item.course)
-        const course = await coursesCollection.findOne({
-          _id: courseId,
-          status: 'approved',
+      if (req.decoded.email === email) {
+        const query = { email: email, status: 'paid' }
+        const courseIDs = await myCourseCollection.find(query).toArray()
+        const promises = courseIDs.map(async (item) => {
+          const courseId = new ObjectId(item.course)
+          const course = await coursesCollection.findOne({
+            _id: courseId,
+            status: 'approved',
+          })
+          return course
         })
-        return course
-      })
-      const courses = await Promise.all(promises)
-      res.send(courses)
+        const courses = await Promise.all(promises)
+        res.send(courses)
+      } else {
+        res.status(401).send('Unauthorized user.')
+      }
     })
     app.get('/courses/my-lists/:email', verifyJWT, async (req, res) => {
       const email = req.params.email
-      const query = { email: email, status: 'unpaid' }
-      const courseIDs = await myCourseCollection.find(query).toArray()
-      const promises = courseIDs.map(async (item) => {
-        const courseId = new ObjectId(item.course)
-        const course = await coursesCollection.findOne({
-          _id: courseId,
-          status: 'approved',
+      if (req.decoded.email === email) {
+        const query = { email: email, status: 'unpaid' }
+        const courseIDs = await myCourseCollection.find(query).toArray()
+        const promises = courseIDs.map(async (item) => {
+          const courseId = new ObjectId(item.course)
+          const course = await coursesCollection.findOne({
+            _id: courseId,
+            status: 'approved',
+          })
+          return course
         })
-        return course
-      })
-      const courses = await Promise.all(promises)
-      res.send(courses)
+        const courses = await Promise.all(promises)
+        res.send(courses)
+      } else {
+        res.status(401).send('Unauthorized user.')
+      }
     })
     /*-------------------------------
 
@@ -158,11 +173,15 @@ async function run() {
     -------------------------------*/
     app.get('/payments/:email', verifyJWT, async (req, res) => {
       const email = req.params.email
-      const result = await paymentsCollection
-        .find({ email })
-        .sort({ billingTime: -1 })
-        .toArray()
-      res.send(result)
+      if (req.decoded.email === email) {
+        const result = await paymentsCollection
+          .find({ email })
+          .sort({ billingTime: -1 })
+          .toArray()
+        res.send(result)
+      } else {
+        res.status(401).send('Unauthorized user.')
+      }
     })
     app.post('/payment', verifyJWT, async (req, res) => {
       const paymentData = req.body
@@ -310,9 +329,13 @@ async function run() {
       verifyInstructor,
       async (req, res) => {
         const email = req.params.email
-        const query = { 'instructor.email': email, status: 'declined' }
-        const result = await coursesCollection.find(query).toArray()
-        res.send(result)
+        if (req.decoded.email === email) {
+          const query = { 'instructor.email': email, status: 'declined' }
+          const result = await coursesCollection.find(query).toArray()
+          res.send(result)
+        } else {
+          res.status(401).send('Unauthorized user.')
+        }
       }
     )
     app.get(
@@ -321,9 +344,13 @@ async function run() {
       verifyInstructor,
       async (req, res) => {
         const email = req.params.email
-        const query = { 'instructor.email': email, status: 'pending' }
-        const result = await coursesCollection.find(query).toArray()
-        res.send(result)
+        if (req.decoded.email === email) {
+          const query = { 'instructor.email': email, status: 'pending' }
+          const result = await coursesCollection.find(query).toArray()
+          res.send(result)
+        } else {
+          res.status(401).send('Unauthorized user.')
+        }
       }
     )
     app.post(
